@@ -1,0 +1,80 @@
+mport requests
+import psycopg2
+import json
+
+url=""
+
+try:
+    response = requests.get(url)
+    if response.status_code == 200:
+        data = response.json()
+        print(json.dumps(data, indent=4))  # Print the fetched data for debugging
+
+        # Check if "coord" exists in the response
+        if "coord" not in data:
+            print("Coord data not found in response:", data)
+            raise ValueError("Coord data missing")
+
+        # Connect to the PostgreSQL database
+        conn = psycopg2.connect(
+            dbname="",
+            user="",
+            password="",
+            host="",
+            port=""
+        )
+        cur = conn.cursor()
+
+        # Insert into coord table
+        coord_data = data["coord"]
+        cur.execute("""
+            INSERT INTO coord (lon, lat)
+            VALUES (%s, %s)
+            RETURNING id;
+        """, (coord_data["lon"], coord_data["lat"]))
+        coord_id = cur.fetchone()[0]
+
+        # Insert weather data
+        for weather in data.get("weather", []):
+            print(f"Inserting weather data: {weather}")  # Debug print
+            cur.execute("""
+                INSERT INTO weather (weather_id, main, description, icon, cloud_coverage, coord_id)
+                VALUES (%s, %s, %s, %s, %s, %s);
+            """, (weather["id"], weather["main"], weather["description"], weather["icon"], data.get("clouds", {}).get("all", 0), coord_id))
+
+        # Insert main weather details
+        main_data = data.get("main", {})
+        cur.execute("""
+            INSERT INTO main (temp, feels_like, temp_min, temp_max, pressure, humidity, sea_level, grnd_level)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
+        """, (main_data.get("temp"), main_data.get("feels_like"), main_data.get("temp_min"), main_data.get("temp_max"),
+              main_data.get("pressure"), main_data.get("humidity"), main_data.get("sea_level"), main_data.get("grnd_level")))
+
+        # Insert extra (wind and visibility) data
+        wind_data = data.get("wind", {})
+        cur.execute("""
+            INSERT INTO extra (speed, deg, gust, visibility)
+            VALUES (%s, %s, %s, %s);
+        """, (wind_data.get("speed", 0), wind_data.get("deg", 0), wind_data.get("gust", 0), data.get("visibility", 0)))
+
+        # Insert system data including dt
+        system_data = data.get("sys", {})
+        cur.execute("""
+            INSERT INTO system (type, country, sunrise, sunset, timezone, place_id, name, base, cod, dt)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+        """, (system_data.get('type'), system_data.get('country'), system_data.get('sunrise'), system_data.get('sunset'),
+              data.get('timezone'), coord_id, data.get('name'), data.get('base'), data.get('cod'), data.get('dt')))
+
+        # Commit the transaction
+        conn.commit()
+
+        # Close cursor and connection
+        cur.close()
+        conn.close()
+
+    else:
+        print(f"API request failed with status code {response.status_code}")
+
+except Exception as e:
+    print(f"Failed: {e}")
+
