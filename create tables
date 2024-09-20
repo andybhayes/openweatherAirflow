@@ -1,0 +1,55 @@
+query="""
+-- Table for geographical coordinates
+CREATE TABLE coord (
+    id SERIAL PRIMARY KEY,
+    lon DECIMAL(9,6),
+    lat DECIMAL(9,6)
+);
+
+-- Table for weather details (references 'coord' for location)
+CREATE TABLE weather (
+    id SERIAL PRIMARY KEY,
+    weather_id INTEGER,
+    main VARCHAR(50),
+    description VARCHAR(50),
+    icon VARCHAR(50),
+    coord_id INTEGER REFERENCES coord(id) -- Foreign key to the coord table
+);
+
+-- Table for temperature and pressure data (e.g., main section of the weather API)
+CREATE TABLE main (
+    id SERIAL PRIMARY KEY,
+    temp DECIMAL(5,2),
+    feels_like DECIMAL(5,2),
+    temp_min DECIMAL(5,2),
+    temp_max DECIMAL(5,2),
+    pressure INTEGER,
+    humidity INTEGER,
+    sea_level INTEGER, -- Fixed 'seal_level' typo
+    grnd_level INTEGER
+);
+
+-- Table for additional weather info like wind speed and visibility
+CREATE TABLE extra (
+    id SERIAL PRIMARY KEY,
+    speed DECIMAL(3,2),
+    deg INTEGER,
+    gust DECIMAL(5,2), -- Fixed 'guest' typo to 'gust'
+    visibility INTEGER,
+    rain VARCHAR(20) -- Fixed missing commas and extra parentheses
+);
+
+-- Table for system-level details like sunrise, sunset, etc.
+CREATE TABLE system (
+    id SERIAL PRIMARY KEY,
+    type INTEGER,
+    country VARCHAR(50),
+    sunrise BIGINT,
+    sunset BIGINT,
+    timezone INTEGER,
+    place_id INTEGER REFERENCES coord(id), -- Foreign key to 'coord' table
+    name VARCHAR(30),
+    base VARCHAR(50),
+    cod INTEGER
+);
+"""
